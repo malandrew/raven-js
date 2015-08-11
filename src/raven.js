@@ -752,9 +752,12 @@ function send(data) {
     // Set lastEventId after we know the error should actually be sent
     lastEventId = data.event_id || (data.event_id = uuid4());
 
-    makeRequest(data);
+    if (typeof globalOptions.getCSRFToken === 'function') {
+        makePostRequest(data, globalOptions.getCSRFToken);
+    } else {
+        makeRequest(data, globalOptions.getCSRFToken);
+    }
 }
-
 
 function makeRequest(data) {
     var img = newImage(),
@@ -777,6 +780,24 @@ function makeRequest(data) {
         });
     };
     img.src = src;
+}
+
+function makePostRequest(data, getCSRFToken) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", globalServer);
+    xhr.setRequestHeader("X-Csrf-Token", getCSRFToken());
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhr.setRequestHeader("X-Sentry-Auth", [
+        "Sentry sentry_version=5",
+        "sentry_client=raven-js, " + Raven.VERSION,
+        "sentry_timestamp=" + (new Date().getTime()),
+        "sentry_key=" + globalKey,
+        "sentry_secret="
+    ].join(', '));
+    xhr.send(JSON.stringify(data));
+    xhr.onload = function () {
+        console.log(this.responseText);
+    };
 }
 
 // Note: this is shitty, but I can't figure out how to get
